@@ -1,0 +1,278 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Asisten Frayn</title>
+<style>
+:root{--bg:#dfe7ee;--ink:#1d2b3a;--muted:#5b6b7b;--face:#fff;--ring:#3b82f6;--shadow:rgba(30,50,80,.22);--btn:#1d2b3a;--btnink:#fff;--field:#fff;--line:#c3cfda;
+box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--bg:#17212b;--ink:#e8eef4;--muted:#9bacbc;--face:#f7f9fb;--shadow:rgba(0,0,0,.5);--btn:#e8eef4;--btnink:#17212b;--field:#223040;--line:#324558}}
+:root[data-theme="dark"]{--bg:#17212b;--ink:#e8eef4;--muted:#9bacbc;--face:#f7f9fb;--shadow:rgba(0,0,0,.5);--btn:#e8eef4;--btnink:#17212b;--field:#223040;--line:#324558}
+*{box-sizing:border-box}
+html,body{height:100%;margin:0}
+body{background:var(--bg);color:var(--ink);font-family:ui-rounded,"Nunito","Segoe UI",system-ui,sans-serif;display:flex;flex-direction:column;align-items:center}
+header{width:100%;max-width:560px;display:flex;align-items:center;justify-content:space-between;padding:16px 20px}
+h1{font-size:1.15rem;margin:0;font-weight:700}
+.timer{color:var(--muted);font-variant-numeric:tabular-nums;font-size:.95rem}
+button{font:inherit;cursor:pointer;border:0;border-radius:999px;padding:10px 20px;background:var(--btn);color:var(--btnink);font-weight:600}
+button:focus-visible,input:focus-visible{outline:3px solid var(--ring);outline-offset:2px}
+button.ghost{background:transparent;color:var(--ink);border:1.5px solid var(--line)}
+main{flex:1;width:100%;max-width:560px;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:0 20px;gap:14px}
+#stage{width:min(72vw,300px);aspect-ratio:1}
+svg{width:100%;height:100%;overflow:visible}
+#status{display:none}
+#caption{font-size:1.15rem;line-height:1.5;text-align:center;min-height:5.2em;max-width:34ch}
+form{width:100%;max-width:560px;display:flex;gap:8px;padding:12px 20px 20px}
+input{flex:1;min-width:0;font:inherit;padding:12px 16px;border-radius:999px;border:1.5px solid var(--line);background:var(--field);color:var(--ink)}
+#start{font-size:1.05rem;padding:14px 32px}
+.hide{display:none!important}
+</style>
+</head>
+<body>
+<header>
+  <h1>Frayn</h1>
+  <span class="timer" id="timer">00:00 / 15:00</span>
+  <button class="ghost" id="end" type="button">Selesai</button>
+</header>
+<main>
+  <div id="stage" aria-hidden="true">
+    <svg viewBox="0 0 300 300">
+      <ellipse cx="150" cy="282" rx="82" ry="10" fill="var(--shadow)"/>
+      <g id="head">
+        <circle cx="150" cy="150" r="118" fill="var(--face)" stroke="var(--ring)" stroke-width="10" id="ring"/>
+        <circle cx="92" cy="176" r="17" fill="#ff7a8a" opacity="0" id="blushL"/>
+        <circle cx="208" cy="176" r="17" fill="#ff7a8a" opacity="0" id="blushR"/>
+        <line id="browL" x1="90" y1="104" x2="128" y2="104" stroke="#1d2b3a" stroke-width="6" stroke-linecap="round"/>
+        <line id="browR" x1="172" y1="104" x2="210" y2="104" stroke="#1d2b3a" stroke-width="6" stroke-linecap="round"/>
+        <ellipse id="eyeL" cx="110" cy="136" rx="13" ry="4" fill="#1d2b3a"/>
+        <ellipse id="eyeR" cx="190" cy="136" rx="13" ry="4" fill="#1d2b3a"/>
+        <path id="mouth" d="M128 190 Q150 192 172 190" fill="#1d2b3a" stroke="#1d2b3a" stroke-width="6" stroke-linecap="round" stroke-linejoin="round"/>
+      </g>
+    </svg>
+  </div>
+  <div id="status">Tekan Mulai untuk berbicara dengan Frayn.</div>
+  <div id="caption"></div>
+  <button id="start" type="button">Mulai</button>
+</main>
+<form id="form" class="hide" autocomplete="off">
+  <input id="q" type="text" placeholder="Tanya seputar Frayn…" aria-label="Pertanyaan">
+  <button type="button" id="mic" class="ghost">Bicara</button>
+  <button type="submit">Kirim</button>
+</form>
+
+<script>
+(function(){
+var $=function(i){return document.getElementById(i)};
+var MOUTH={
+ closed:'M128 190 Q150 192 172 190',smile:'M124 184 Q150 212 176 184',
+ a:'M132 184 Q150 178 168 184 Q166 216 150 216 Q134 216 132 184Z',
+ e:'M128 186 Q150 182 172 186 Q168 206 150 206 Q132 206 128 186Z',
+ i:'M126 188 Q150 184 174 188 Q150 199 126 188Z',
+ o:'M140 182 Q150 176 160 182 Q166 200 150 210 Q134 200 140 182Z',
+ u:'M143 186 Q150 182 157 186 Q159 199 150 201 Q141 199 143 186Z',
+ hm:'M130 192 Q150 198 170 192'};
+function viseme(c){
+ c=(c||'').toLowerCase();
+ if('mbp'.indexOf(c)>=0&&c)return 'closed';
+ if(c==='a')return 'a'; if(c==='e')return 'e'; if(c==='i')return 'i';
+ if(c==='o')return 'o'; if(c==='u')return 'u';
+ if(c===' '||c===''||/[.,!?]/.test(c))return 'closed';
+ return 'e';
+}
+var S={emo:'sleepy',speaking:false,text:'',idx:0,t0:0,blink:1,mouth:'closed',active:false,sec:0};
+var RING={sleepy:'#3b82f6',neutral:'#3b82f6',happy:'#3b82f6',listen:'#22c55e',salting:'#f472b6',bingung:'#f59e0b'};
+function setEmo(e){S.emo=e;$('ring').setAttribute('stroke',RING[e]||RING.neutral)}
+var cur={y:0,r:0,ey:4,by:0,bl:0};
+function lerp(a,b,k){return a+(b-a)*k}
+function frame(ts){
+ var t=ts/1000,e=S.emo,sp=S.speaking;
+ var ty=Math.sin(t*1.6)*(sp?4:2),tr=0,tey=14,tby=0,tbl=0,mo=null;
+ if(e==='sleepy'){tey=4;tby=6}
+ if(e==='listen'){tey=18;tby=-6}
+ if(e==='happy'){tey=10;tr=Math.sin(t*5)*3}
+ if(e==='salting'){tey=11;tby=-5;tr=Math.sin(t*3)*7-3;tbl=.85;ty+=Math.sin(t*6)*2;mo='smile'}
+ if(e==='bingung'){tr=9;tby=-4;tey=15}
+ if(sp&&e!=='salting'){tr+=Math.sin(t*2.2)*2.5}
+ cur.y=lerp(cur.y,ty,.15);cur.r=lerp(cur.r,tr,.12);cur.ey=lerp(cur.ey,tey*S.blink,.35);cur.by=lerp(cur.by,tby,.15);cur.bl=lerp(cur.bl,tbl,.1);
+ $('head').setAttribute('transform','translate(0 '+cur.y.toFixed(1)+') rotate('+cur.r.toFixed(1)+' 150 150)');
+ ['eyeL','eyeR'].forEach(function(i){$(i).setAttribute('ry',Math.max(1.5,cur.ey).toFixed(1))});
+ var tilt=(e==='bingung')?-4:0;
+ $('browL').setAttribute('y1',104+cur.by+tilt);$('browL').setAttribute('y2',104+cur.by-tilt);
+ $('browR').setAttribute('y1',104+cur.by-tilt);$('browR').setAttribute('y2',104+cur.by+tilt);
+ $('blushL').setAttribute('opacity',cur.bl.toFixed(2));$('blushR').setAttribute('opacity',cur.bl.toFixed(2));
+ var m;
+ if(sp){
+  var est=Math.floor((performance.now()-S.t0)/1000*S.cps);
+  var i=Math.max(S.idx,est);
+  var c=S.text.charAt(Math.min(i,S.text.length-1));
+  m=viseme(c);
+  if(((Math.floor(t*11))%2)===1&&m!=='closed')m=(m==='a'||m==='o')?'e':m;
+ }else m=mo||(e==='happy'?'smile':e==='listen'?'hm':'closed');
+ if(!sp&&e==='neutral')m='smile';
+ if(m!==S.mouth){S.mouth=m;var p=$('mouth');p.setAttribute('d',MOUTH[m]);p.setAttribute('fill',(m==='closed'||m==='smile'||m==='hm')?'none':'#1d2b3a')}
+ requestAnimationFrame(frame);
+}
+requestAnimationFrame(frame);
+(function blinkLoop(){
+ setTimeout(function(){if(S.emo!=='sleepy'){S.blink=.1;setTimeout(function(){S.blink=1},110)}blinkLoop()},2200+Math.random()*2500);
+})();
+
+/* ---- suara ---- */
+var synth=window.speechSynthesis,voice=null;
+var isMobile=/Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
+var RATE_MUL=isMobile?0.82:1;
+function pickVoice(){
+ if(!synth)return;
+ var v=synth.getVoices().filter(function(x){return /^id([-_]|$)/i.test(x.lang)});
+ var pref=v.filter(function(x){return /natural|online|google/i.test(x.name)});
+ voice=pref[0]||v[0]||null;
+}
+if(synth){pickVoice();synth.onvoiceschanged=pickVoice}
+var PROS={neutral:[1.02,1.05],happy:[1.08,1.18],salting:[1.05,1.3],bingung:[.97,1.0],listen:[1,1]};
+function splitS(t){return t.match(/[^.!?…]+[.!?…]*/g)||[t]}
+var curAudio=null;
+function stopAudio(){if(curAudio){var a=curAudio;curAudio=null;a.onplaying=a.onended=a.onerror=null;try{a.pause()}catch(e){}}}
+function speak(text,emo,done,key){
+ if(!key)return speakTTS(text,emo,done);
+ if(emo)setEmo(emo);
+ $('status').textContent='Frayn sedang berbicara…';
+ stopAudio();
+ var a=new Audio('audio/'+key+'.mp3'),fell=false;a.preload='auto';curAudio=a;
+ function fallback(){if(fell||curAudio!==a)return;fell=true;stopAudio();speakTTS(text,emo,done)}
+ a.onerror=fallback;
+ a.onplaying=function(){
+  S.text=text;S.idx=0;S.t0=performance.now();S.speaking=true;
+  S.cps=(a.duration&&isFinite(a.duration))?text.length/a.duration:13;
+  $('caption').textContent=text;
+ };
+ a.onended=function(){S.speaking=false;curAudio=null;setTimeout(function(){if(!S.active){return}if(done)done()},300)};
+ var pr=a.play();if(pr&&pr.catch)pr.catch(fallback);
+}
+function speakTTS(text,emo,done){
+ if(emo)setEmo(emo);
+ var parts=splitS(text).map(function(s){return s.trim()}).filter(Boolean),i=0;
+ $('status').textContent='Frayn sedang berbicara…';
+ function next(){
+  if(!S.active||i>=parts.length){S.speaking=false;if(done)done();return}
+  var s=parts[i++];S.text=s;S.idx=0;S.cps=13;S.t0=performance.now();S.speaking=true;
+  $('caption').textContent=s;
+  var after=function(){S.speaking=false;setTimeout(next,260+Math.random()*160)};
+  if(!synth){setTimeout(after,s.length*75);return}
+  if(!voice)pickVoice();
+  var u=new SpeechSynthesisUtterance(s);u.lang='id-ID';if(voice)u.voice=voice;
+  var p=PROS[S.emo]||PROS.neutral;
+  u.rate=(p[0]+(Math.random()*.08-.04))*RATE_MUL;u.pitch=p[1]+(Math.random()*.1-.05);
+  S.cps=13*u.rate;
+  u.onboundary=function(ev){if(ev.charIndex!=null){S.idx=ev.charIndex;S.t0=performance.now()-ev.charIndex/S.cps*1000}};
+  u.onend=after;u.onerror=after;
+  synth.speak(u);
+ }
+ next();
+}
+
+/* ---- data Frayn ---- */
+var RULES=[
+ [/pacar|cewek|cewe\b|cewe |pasangan|jomblo|gebetan|pdkt|pedekate|pendekatan|kekasih|punya.*(cewek|cewe)|menikah|nikah/,'pacar'],
+ [/sifat|karakter|orangnya|kepribadian|watak/,'sifat'],
+ [/panggil|nama\s*kecil|dipanggil/,'panggil'],
+ [/nama|siapa\s*(tuan|frayn|dia)|siapa\s*sih/,'nama'],
+ [/umur|usia|berapa\s*tahun|lahir/,'umur'],
+ [/anak\s*(ke|pertama|sulung)|urutan|saudara|adik|kakak|bersaudara/,'anak'],
+ [/hobi|hobby|kegemaran|suka\s*apa|senang\s*apa|melukis|lukis/,'hobi'],
+ [/keahlian|ahli|skill|bisa\s*apa|kemampuan|hack|keamanan|bakat/,'skill'],
+ [/asal|daerah|dari\s*mana|kampung|ntt|manggarai|flores|lahir\s*di|tinggal/,'asal'],
+ [/kuliah|kampus|universitas|semester|jurusan|prodi|informatika|sekolah|tamansiswa|taman\s*siswa|pendidikan/,'kuliah'],
+ [/siapa\s*(kamu|anda|kau|dirimu)|kamu\s*siapa|anda\s*siapa|dikembangkan|pembuat|yang\s*buat/,'aku'],
+ [/terima\s*kasih|makasih|thanks|thank/,'makasih'],
+ [/^(halo|hai|hi|hello|selamat)/,'halo']
+];
+var ANS={
+ nama:'Nama lengkap tuan saya adalah Frumensius Saputra Arjon. Biasanya dia dipanggil Frayn.',
+ panggil:'Nama panggilannya Frayn.',
+ umur:'Tuan Frayn sekarang berumur 21 tahun.',
+ anak:'Tuan Frayn itu anak pertama di keluarganya.',
+ hobi:'Hobi tuan saya adalah melukis.',
+ skill:'Keahliannya di bidang ethical hacking, tingkat menengah ya. Masih terus belajar dia.',
+ sifat:'Tuan Frayn aslinya pendiam, tapi cepat akrab.',
+ asal:'Tuan Frayn berasal dari NTT, tepatnya Kabupaten Manggarai Barat.',
+ kuliah:'Sekarang tuan saya semester 3, program studi Informatika di Universitas Sarjanawiyata Tamansiswa.',
+ aku:'Saya asisten chatbot yang dikembangkan oleh Frayn. Saya di sini untuk menjawab pertanyaan seputar tuan saya.',
+ makasih:'Sama-sama! Ada lagi yang mau ditanyakan seputar tuan saya, Frayn?',
+ halo:'Halo juga! Ada yang mau ditanyakan seputar tuan saya, Frayn?'
+};
+function answer(q){
+ q=q.toLowerCase().trim();
+ for(var i=0;i<RULES.length;i++)if(RULES[i][0].test(q))return RULES[i][1];
+ return null;
+}
+var busy=false;
+function handle(q){
+ if(!S.active||busy||!q.trim())return;
+ busy=true;stopListen();
+ $('caption').textContent='“'+q.trim()+'”';
+ var k=answer(q);
+ setEmo('neutral');$('status').textContent='Frayn sedang berpikir…';
+ setTimeout(function(){
+  if(k==='pacar'){
+   setEmo('salting');$('status').textContent='Frayn jadi salah tingkah…';$('caption').textContent='Hehe…';
+   setTimeout(function(){
+    speak('Hehe… aduh, kok nanyanya gitu sih. Dari dulu tuan saya menjomblo, dan sekarang belum ada cewek atau pacar.','salting',function(){setEmo('happy');finish()},'pacar');
+   },1900);
+  }else if(k){
+   speak(ANS[k],k==='sifat'||k==='hobi'||k==='makasih'||k==='halo'?'happy':'neutral',finish,k);
+  }else{
+   speak('Hmm, maaf, saya cuma bisa menjawab seputar tuan saya, Frayn. Coba tanya soal nama, umur, hobi, asal, atau kuliahnya.','bingung',finish,'bingung');
+  }
+ },700);
+}
+function finish(){
+ busy=false;if(!S.active)return;
+ setEmo('listen');$('status').textContent='Frayn mendengarkan…';
+ startListen();
+}
+
+/* ---- mikrofon ---- */
+var SR=window.SpeechRecognition||window.webkitSpeechRecognition,rec=null,listening=false;
+function startListen(){
+ if(!SR||!S.active||busy||listening)return;
+ try{
+  rec=new SR();rec.lang='id-ID';rec.interimResults=false;rec.maxAlternatives=1;
+  rec.onresult=function(ev){var t=ev.results[0][0].transcript;listening=false;$('mic').textContent='Bicara';handle(t)};
+  rec.onerror=function(){listening=false;$('mic').textContent='Bicara'};
+  rec.onend=function(){listening=false;$('mic').textContent='Bicara'};
+  rec.start();listening=true;$('mic').textContent='Mendengarkan…';
+ }catch(e){listening=false}
+}
+function stopListen(){try{if(rec&&listening)rec.abort()}catch(e){}listening=false;$('mic').textContent='Bicara'}
+$('mic').onclick=function(){listening?stopListen():startListen()};
+if(!SR)$('mic').classList.add('hide');
+$('form').onsubmit=function(e){e.preventDefault();var v=$('q').value;$('q').value='';handle(v)};
+
+/* ---- alur ---- */
+var tick=null;
+function fmt(n){return (n<10?'0':'')+n}
+$('start').onclick=function(){
+ S.active=true;$('start').classList.add('hide');$('form').classList.remove('hide');
+ if(synth){var w=new SpeechSynthesisUtterance(' ');w.volume=0;synth.speak(w)}
+ S.sec=0;clearInterval(tick);
+ tick=setInterval(function(){S.sec++;$('timer').textContent=fmt(Math.floor(S.sec/60))+':'+fmt(S.sec%60)+' / 15:00';if(S.sec>=900)endSession()},1000);
+ setEmo('happy');busy=true;
+ speak('Halo, selamat datang! Saya adalah asisten chatbot yang dikembangkan oleh Frayn. Apakah ada yang mau ditanyakan seputar tuan saya, Frayn?','happy',finish,'welcome');
+};
+function endSession(){
+ if(!S.active)return;
+ var wasSpeaking=synth&&synth.speaking;
+ stopListen();stopAudio();if(synth)synth.cancel();
+ S.speaking=false;busy=false;clearInterval(tick);
+ var st=true;S.active=true;
+ speak('Terima kasih sudah ngobrol. Sampai jumpa!','happy',function(){
+  S.active=false;setEmo('sleepy');$('status').textContent='Sesi selesai.';$('caption').textContent='';
+  $('form').classList.add('hide');$('start').textContent='Mulai lagi';$('start').classList.remove('hide');
+ },'bye');
+}
+$('end').onclick=endSession;
+})();
+</script>
+</body>
+</html>
